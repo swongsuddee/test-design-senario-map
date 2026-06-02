@@ -1,0 +1,72 @@
+import type { TcSectionDef } from '@/types';
+
+export const TC_SECTIONS: TcSectionDef[] = [
+  {
+    sectionId: 'tc-visibility',
+    num: '5',
+    title: 'Test Cases · Upload Field Visibility',
+    subtitle: 'TC-001–002',
+    cols: ['module', 'type', 'labels'],
+    rows: [
+      {
+        id: 'PP136-TC-001',
+        isNew: true,
+        summary: 'Book Bank upload field visible for Individual Agency',
+        module: 'Upload Field Visibility',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['dt', 'DT'], ['ep', 'Regression']],
+      },
+      {
+        id: 'PP136-TC-002',
+        isNew: true,
+        summary: 'Book Bank upload field visible for Corporate Agency',
+        module: 'Upload Field Visibility',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['dt', 'DT'], ['ep', 'Regression']],
+      },
+    ],
+  },
+  {
+    sectionId: 'tc-upload',
+    num: '6',
+    title: 'Test Cases · File Upload Validation',
+    subtitle: 'TC-003–005',
+    cols: ['module', 'type', 'labels'],
+    rows: [
+      {
+        id: 'PP136-TC-003',
+        isNew: true,
+        summary: 'Upload valid PDF file (≤ 10 MB) succeeds',
+        module: 'File Upload — Valid',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['ep', 'EP'], ['ep', 'Regression']],
+      },
+      {
+        id: 'PP136-TC-004',
+        isNew: true,
+        summary: 'Unsupported file type (.exe) is rejected with error message',
+        module: 'File Type Validation',
+        type: 'Negative',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['ep', 'EP'], ['ep', 'Regression']],
+      },
+      {
+        id: 'PP136-TC-005',
+        isNew: true,
+        summary: 'File exceeding 10 MB is rejected with error message',
+        module: 'File Size Validation',
+        type: 'Negative',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['bva', 'BVA'], ['ep', 'Regression']],
+      },
+    ],
+  },
+];

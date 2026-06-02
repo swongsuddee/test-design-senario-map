@@ -1,0 +1,103 @@
+import type { TcSectionDef } from '@/types';
+
+export const TC_SECTIONS: TcSectionDef[] = [
+  {
+    sectionId: 'tc-button-dialog',
+    num: '4',
+    title: 'Test Cases · Delete Button & Confirmation Dialog',
+    subtitle: 'TC-001–TC-002',
+    cols: ['module', 'type', 'labels'],
+    rows: [
+      {
+        id: 'PP244-TC-001',
+        module: 'Delete Button',
+        summary: 'Delete Account button is visible and accessible in Account Settings',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['ep', 'Spec'], ['regression', 'Regression']],
+      },
+      {
+        id: 'PP244-TC-002',
+        module: 'Confirmation Dialog',
+        summary: 'Tapping Delete Account shows a confirmation dialog with warning message and action buttons',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['ep', 'Spec'], ['regression', 'Regression']],
+      },
+    ],
+  },
+  {
+    sectionId: 'tc-cancel',
+    num: '5',
+    title: 'Test Cases · Cancel Flow',
+    subtitle: 'TC-003',
+    cols: ['module', 'type', 'labels'],
+    rows: [
+      {
+        id: 'PP244-TC-003',
+        module: 'Cancel Flow',
+        summary: 'Cancelling the confirmation dialog leaves the account intact and organizer logged in',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['st', 'ST'], ['regression', 'Regression']],
+      },
+    ],
+  },
+  {
+    sectionId: 'tc-deletion',
+    num: '6',
+    title: 'Test Cases · Account Deletion & Force Logout',
+    subtitle: 'TC-004–TC-005',
+    cols: ['module', 'type', 'labels'],
+    rows: [
+      {
+        id: 'PP244-TC-004',
+        module: 'Successful Deletion',
+        summary: 'Confirming deletion deletes the account, force-logs out the organizer, and redirects to Landing Page',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['st', 'ST'], ['regression', 'Regression']],
+      },
+      {
+        id: 'PP244-TC-005',
+        module: 'Force Logout',
+        summary: 'Deleted account session is fully cleared — protected route redirects to login/landing',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['st', 'ST'], ['regression', 'Regression']],
+      },
+    ],
+  },
+  {
+    sectionId: 'tc-relogin-error',
+    num: '7',
+    title: 'Test Cases · Re-login Prevention & API Error',
+    subtitle: 'TC-006–TC-007',
+    cols: ['module', 'type', 'labels'],
+    rows: [
+      {
+        id: 'PP244-TC-006',
+        module: 'Re-login Prevention',
+        summary: 'Attempting to log in with deleted account credentials is rejected with an error message',
+        type: 'Negative',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['negative', 'Negative'], ['manual', 'EG'], ['regression', 'Regression']],
+      },
+      {
+        id: 'PP244-TC-007',
+        module: 'API Error Handling',
+        summary: 'Delete API failure keeps the account active and shows an error message',
+        type: 'Negative',
+        priority: 'medium',
+        auto: 'partial',
+        labels: [['negative', 'Negative'], ['manual', 'EG'], ['regression', 'Regression']],
+      },
+    ],
+  },
+];

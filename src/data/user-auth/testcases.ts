@@ -1,0 +1,47 @@
+import type { TcSectionDef } from '@/types';
+
+export const TC_SECTIONS: TcSectionDef[] = [
+  {
+    sectionId: 'tc-login',
+    num: '5',
+    title: 'Test Cases · OTP Login (verify-otp)',
+    subtitle: 'UA-LOGIN-TC-001–014 · POST /api/v1/auth/verify-otp',
+    cols: ['type', 'labels'],
+    rows: [
+      { id: 'UA-LOGIN-TC-001', summary: 'bypass otp=123456 on registered phone → 200 + accessToken + refreshToken + expiresIn + tokenType:Bearer', type: 'Functional', priority: 'high', auto: 'auto', labels: [['smoke','Smoke'],['api','API'],['ep','EP']] },
+      { id: 'UA-LOGIN-TC-002', summary: 'accessToken from bypass is usable — GET /api/v1/user/profile → 200', type: 'Functional', priority: 'high', auto: 'auto', labels: [['smoke','Smoke'],['api','API'],['st','ST']] },
+      { id: 'UA-LOGIN-TC-003', summary: 'refreshToken renews accessToken — POST /api/v1/auth/refresh-token → 200 + new accessToken', type: 'Functional', priority: 'high', auto: 'auto', labels: [['api','API'],['st','ST']] },
+      { id: 'UA-LOGIN-TC-004', summary: 'otp=000000 (wrong, non-bypass) → 401', type: 'Negative', priority: 'high', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-LOGIN-TC-005', summary: 'otp=12345 (5 digits — pattern violation) → 400', type: 'Boundary', priority: 'high', auto: 'auto', labels: [['api','API'],['bva','BVA']] },
+      { id: 'UA-LOGIN-TC-006', summary: 'otp=1234567 (7 digits — pattern violation) → 400', type: 'Boundary', priority: 'high', auto: 'auto', labels: [['api','API'],['bva','BVA']] },
+      { id: 'UA-LOGIN-TC-007', summary: 'otp=abcdef (non-numeric) → 400', type: 'Negative', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-LOGIN-TC-008', summary: 'unregistered phone + bypass otp=123456 → 401 or 404', type: 'Negative', priority: 'high', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-LOGIN-TC-009', summary: 'missing phone field → 400', type: 'Negative', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-LOGIN-TC-010', summary: 'missing otp field → 400', type: 'Negative', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-LOGIN-TC-011', summary: 'empty body {} → 400', type: 'Negative', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-LOGIN-TC-012', summary: 'phone 8 digits (too short — below ^[0-9]{9,10}$) → 400', type: 'Boundary', priority: 'medium', auto: 'auto', labels: [['api','API'],['bva','BVA']] },
+      { id: 'UA-LOGIN-TC-013', summary: 'phone 11 digits (too long) → 400', type: 'Boundary', priority: 'medium', auto: 'auto', labels: [['api','API'],['bva','BVA']] },
+      { id: 'UA-LOGIN-TC-014', summary: 'phone with +66 prefix → 400 (pattern ^[0-9]{9,10}$ rejects + sign)', type: 'Negative', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+    ],
+  },
+  {
+    sectionId: 'tc-register',
+    num: '6',
+    title: 'Test Cases · OTP Registration (timestamp phone)',
+    subtitle: 'UA-REG-TC-001–011 · POST request-otp → verify-otp → GET profile',
+    cols: ['type', 'labels'],
+    rows: [
+      { id: 'UA-REG-TC-001', summary: 'new timestamp phone → POST request-otp → 200 + success:true + expiredAt in future', type: 'Functional', priority: 'high', auto: 'auto', labels: [['smoke','Smoke'],['api','API'],['ep','EP']] },
+      { id: 'UA-REG-TC-002', summary: '10-digit phone (upper BVA boundary) → request-otp → 200', type: 'Boundary', priority: 'medium', auto: 'auto', labels: [['api','API'],['bva','BVA']] },
+      { id: 'UA-REG-TC-003', summary: 're-request OTP same phone → 200 (idempotent re-send)', type: 'Functional', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-REG-TC-004', summary: 'phone 8 digits (too short — below ^[0-9]{9,10}$) → request-otp → 400', type: 'Boundary', priority: 'medium', auto: 'auto', labels: [['api','API'],['bva','BVA']] },
+      { id: 'UA-REG-TC-005', summary: 'phone 11 digits (too long) → request-otp → 400', type: 'Boundary', priority: 'medium', auto: 'auto', labels: [['api','API'],['bva','BVA']] },
+      { id: 'UA-REG-TC-006', summary: 'phone contains letters → request-otp → 400', type: 'Negative', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-REG-TC-007', summary: 'phone with +66 prefix → request-otp → 400 (pattern rejects + sign)', type: 'Negative', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-REG-TC-008', summary: 'missing phone field → request-otp → 400', type: 'Negative', priority: 'medium', auto: 'auto', labels: [['api','API'],['ep','EP']] },
+      { id: 'UA-REG-TC-009', summary: 'request-otp then verify-otp bypass → 200 + full token contract (accessToken, refreshToken, expiresIn, tokenType)', type: 'Functional', priority: 'high', auto: 'auto', labels: [['smoke','Smoke'],['api','API'],['st','ST']] },
+      { id: 'UA-REG-TC-010', summary: 'full new-user journey: request-otp → verify-otp bypass → GET profile → id is non-empty string', type: 'Functional', priority: 'high', auto: 'auto', labels: [['smoke','Smoke'],['api','API'],['st','ST']] },
+      { id: 'UA-REG-TC-011', summary: 'second login same phone → GET profile → userId matches first login (returning user)', type: 'Functional', priority: 'medium', auto: 'auto', labels: [['api','API'],['regression','Regression'],['st','ST']] },
+    ],
+  },
+];

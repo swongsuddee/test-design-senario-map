@@ -1,0 +1,121 @@
+import type { TcSectionDef } from '@/types';
+
+export const TC_SECTIONS: TcSectionDef[] = [
+  {
+    sectionId: 'tc-timer',
+    num: '6',
+    title: 'Test Cases · Countdown Timer & Button States',
+    subtitle: 'TC-001–003',
+    cols: ['type', 'labels'],
+    rows: [
+      {
+        id: 'PP228-TC-001',
+        summary: 'Countdown timer starts at 60s and Resend button is disabled on page load',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['st', 'ST'], ['bva', 'BVA']],
+      },
+      {
+        id: 'PP228-TC-002',
+        summary: 'Resend button remains disabled throughout the entire 60-second countdown window',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['st', 'ST'], ['bva', 'BVA']],
+      },
+      {
+        id: 'PP228-TC-003',
+        summary: 'Resend button enables and timer disappears when countdown reaches 0',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['st', 'ST'], ['bva', 'BVA']],
+      },
+    ],
+  },
+  {
+    sectionId: 'tc-happy-path',
+    num: '7',
+    title: 'Test Cases · Resend Happy Path',
+    subtitle: 'TC-004',
+    cols: ['type', 'labels'],
+    rows: [
+      {
+        id: 'PP228-TC-004',
+        summary: 'Pressing Resend shows loading state, sends new email, shows success toast, and resets 60s timer',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'auto',
+        labels: [['smoke', 'Smoke'], ['st', 'ST']],
+      },
+    ],
+  },
+  {
+    sectionId: 'tc-token',
+    num: '8',
+    title: 'Test Cases · Token Invalidation & Expiry',
+    subtitle: 'TC-005, TC-009',
+    cols: ['type', 'labels'],
+    rows: [
+      {
+        id: 'PP228-TC-005',
+        summary: 'Old verification OTP/link is rejected after Resend is triggered',
+        type: 'Security',
+        priority: 'high',
+        auto: 'partial',
+        labels: [['st', 'ST']],
+      },
+      {
+        id: 'PP228-TC-009',
+        summary: 'Submitting a verification OTP after 15 minutes shows an expiry error',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'partial',
+        labels: [['bva', 'BVA'], ['st', 'ST']],
+      },
+    ],
+  },
+  {
+    sectionId: 'tc-rate-limit',
+    num: '9',
+    title: 'Test Cases · Rate Limiting',
+    subtitle: 'TC-006–007',
+    cols: ['type', 'labels'],
+    rows: [
+      {
+        id: 'PP228-TC-006',
+        summary: 'Multiple resends within the allowed limit (up to 3-5/hour) all succeed',
+        type: 'Functional',
+        priority: 'medium',
+        auto: 'partial',
+        labels: [['ep', 'EP']],
+      },
+      {
+        id: 'PP228-TC-007',
+        summary: 'Exceeding the resend limit (> 5 per hour) blocks the button with an error message',
+        type: 'Security',
+        priority: 'high',
+        auto: 'partial',
+        labels: [['bva', 'BVA'], ['ep', 'EP']],
+      },
+    ],
+  },
+  {
+    sectionId: 'tc-api-error',
+    num: '10',
+    title: 'Test Cases · API Error Handling',
+    subtitle: 'TC-008',
+    cols: ['type', 'labels'],
+    rows: [
+      {
+        id: 'PP228-TC-008',
+        summary: 'Network/server error during Resend shows error toast without resetting the countdown',
+        type: 'Functional',
+        priority: 'high',
+        auto: 'partial',
+        labels: [['manual', 'EG']],
+      },
+    ],
+  },
+];
