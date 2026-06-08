@@ -1,9 +1,8 @@
-import FlowSection from '@/components/FlowSection';
-import TcSection from '@/components/TcSection';
+import FlowSection from '@/client/components/FlowSection';
 import { MASTER_FLOW_SECTION, FLOW_SECTIONS } from '@/data/pp209/flows';
 import { TC_SECTIONS } from '@/data/pp209/testcases';
-import RequirementSection from '@/components/RequirementSection';
-import ScenarioSection from '@/components/ScenarioSection';
+import RequirementSection from '@/client/components/RequirementSection';
+import ScenarioSection from '@/client/components/ScenarioSection';
 import { SM_NODES, SM_EDGES, SM_SCENARIOS } from '@/data/pp209/scenariomap';
 
 // ── Static data ────────────────────────────────────────────────────────────────
@@ -160,7 +159,6 @@ export default function PP209Page() {
       {FLOW_SECTIONS.map(def => <FlowSection key={def.sectionId} def={def} />)}
 
       {/* 6–8 — TC sections */}
-      {TC_SECTIONS.map(def => <TcSection key={def.sectionId} def={def} />)}
 
       {/* C — Coverage Report */}
       <section className="section" id="coverage-map">
@@ -241,6 +239,7 @@ export default function PP209Page() {
         nodes={SM_NODES}
         edges={SM_EDGES}
         scenarios={SM_SCENARIOS}
+        tcMeta={TC_SECTIONS.flatMap(s => s.rows)}
       />
 
       {/* Original Requirement */}

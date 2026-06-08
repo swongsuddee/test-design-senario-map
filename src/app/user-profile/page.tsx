@@ -1,6 +1,6 @@
-import FlowSection from '@/components/FlowSection';
-import TcSection from '@/components/TcSection';
-import ClarifySection from '@/components/ClarifySection';
+import FlowSection from '@/client/components/FlowSection';
+import TcSection from '@/client/components/TcSection';
+import ClarifySection from '@/client/components/ClarifySection';
 import { MASTER_FLOW_SECTION, FLOW_SECTIONS } from '@/data/user-profile/flows';
 import { TC_SECTIONS } from '@/data/user-profile/testcases';
 import { CONFLICT_ITEMS } from '@/data/user-profile/conflicts';

@@ -1,4 +1,4 @@
-import RequirementSection from '@/components/RequirementSection';
+import RequirementSection from '@/client/components/RequirementSection';
 
 const META_CARDS = [
   { label: 'Jira Story', value: 'PP-304',         cls: 'blue'  },

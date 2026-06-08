@@ -1,8 +1,8 @@
-import FlowSection from '@/components/FlowSection';
-import TcSection from '@/components/TcSection';
+import FlowSection from '@/client/components/FlowSection';
+import TcSection from '@/client/components/TcSection';
 import { MASTER_FLOW_SECTION, FLOW_SECTIONS } from '@/data/org-auth/flows';
 import { TC_SECTIONS } from '@/data/org-auth/testcases';
-import RequirementSection from '@/components/RequirementSection';
+import RequirementSection from '@/client/components/RequirementSection';
 
 // ── Static data ────────────────────────────────────────────────────────────────
 const META_CARDS = [

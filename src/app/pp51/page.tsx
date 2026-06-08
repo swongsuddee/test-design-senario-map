@@ -1,11 +1,10 @@
-import FlowSection from '@/components/FlowSection';
-import TcSection from '@/components/TcSection';
-import ClarifySection from '@/components/ClarifySection';
+import FlowSection from '@/client/components/FlowSection';
+import ClarifySection from '@/client/components/ClarifySection';
 import { MASTER_FLOW_SECTION, FLOW_SECTIONS } from '@/data/pp51/flows';
 import { TC_SECTIONS } from '@/data/pp51/testcases';
 import { CONFLICT_ITEMS } from '@/data/pp51/conflicts';
-import RequirementSection from '@/components/RequirementSection';
-import ScenarioSection from '@/components/ScenarioSection';
+import RequirementSection from '@/client/components/RequirementSection';
+import ScenarioSection from '@/client/components/ScenarioSection';
 import { SM_NODES, SM_EDGES, SM_SCENARIOS } from '@/data/pp51/scenariomap';
 
 // ── Static data ────────────────────────────────────────────────────────────────
@@ -151,7 +150,6 @@ export default function PP51Page() {
       {FLOW_SECTIONS.map(def => <FlowSection key={def.sectionId} def={def} />)}
 
       {/* 7–11 — TC sections */}
-      {TC_SECTIONS.map(def => <TcSection key={def.sectionId} def={def} />)}
 
       {/* C — Coverage Report */}
       <section className="section" id="coverage-map">
@@ -242,6 +240,7 @@ export default function PP51Page() {
         nodes={SM_NODES}
         edges={SM_EDGES}
         scenarios={SM_SCENARIOS}
+        tcMeta={TC_SECTIONS.flatMap(s => s.rows)}
       />
 
       {/* Original Requirement */}

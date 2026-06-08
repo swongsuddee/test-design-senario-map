@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import Sidebar from '@/components/Sidebar';
-import type { NavSection } from '@/components/Sidebar';
-import TabBar from '@/components/TabBar';
+import Sidebar from '@/client/components/Sidebar';
+import type { NavSection } from '@/client/components/Sidebar';
+import TabBar from '@/client/components/TabBar';
 
 export const metadata: Metadata = {
   title: 'PP-447 · Explore Community — Test Design',

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import Sidebar from '@/components/Sidebar';
-import type { NavSection } from '@/components/Sidebar';
-import TabBar from '@/components/TabBar';
+import Sidebar from '@/client/components/Sidebar';
+import type { NavSection } from '@/client/components/Sidebar';
+import TabBar from '@/client/components/TabBar';
 
 export const metadata: Metadata = {
   title: 'USER-AUTH · User Auth API (OTP) — Test Design',
@@ -28,13 +28,6 @@ const NAV: NavSection[] = [
     ],
   },
   {
-    title: 'Test Cases',
-    links: [
-      { href: '#tc-login',    label: 'OTP Login'        },
-      { href: '#tc-register', label: 'OTP Registration' },
-    ],
-  },
-  {
     title: 'Scenario Maps',
     links: [
       { href: '#smap-main', label: 'User Auth OTP' },
@@ -44,6 +37,7 @@ const NAV: NavSection[] = [
     title: 'Analysis',
     links: [
       { href: '#coverage-map', label: 'Coverage Report'   },
+      { href: '#conflict-notes', label: 'Conflicts & Clarify' },
       { href: '#automation',   label: 'Automation Notes'  },
       { href: '#testdata',     label: 'Test Data'         },
     ],

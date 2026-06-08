@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import Sidebar from '@/components/Sidebar';
-import type { NavSection } from '@/components/Sidebar';
-import TabBar from '@/components/TabBar';
+import Sidebar from '@/client/components/Sidebar';
+import type { NavSection } from '@/client/components/Sidebar';
+import TabBar from '@/client/components/TabBar';
 import { CONFLICT_ITEMS } from '@/data/pp171/conflicts';
 const CONFLICT_COUNT = CONFLICT_ITEMS.filter(i => i.status === 'pending' || i.status === 'on-hold').length;
 

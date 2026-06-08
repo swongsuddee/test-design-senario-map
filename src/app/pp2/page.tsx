@@ -1,7 +1,6 @@
-import FlowSection from '@/components/FlowSection';
-import TcSection from '@/components/TcSection';
-import ScenarioSection from '@/components/ScenarioSection';
-import ClarifySection from '@/components/ClarifySection';
+import FlowSection from '@/client/components/FlowSection';
+import ScenarioSection from '@/client/components/ScenarioSection';
+import ClarifySection from '@/client/components/ClarifySection';
 import { MASTER_FLOW_SECTION, FLOW_SECTIONS } from '@/data/pp2/flows';
 import { TC_SECTIONS } from '@/data/pp2/testcases';
 import { PL_EDGES, PL_NODES, PL_SCENARIOS } from '@/data/pp2/phone';
@@ -12,7 +11,7 @@ import { OB_EDGES, OB_NODES, OB_SCENARIOS } from '@/data/pp2/onboarding';
 import { SS_EDGES, SS_NODES, SS_SCENARIOS } from '@/data/pp2/session';
 import { EC_EDGES, EC_NODES, EC_SCENARIOS } from '@/data/pp2/edge';
 import { CONFLICT_ITEMS } from '@/data/pp2/conflicts';
-import RequirementSection from '@/components/RequirementSection';
+import RequirementSection from '@/client/components/RequirementSection';
 
 // ── Static data ────────────────────────────────────────────────────────────────
 const META_CARDS = [
@@ -185,9 +184,6 @@ export default function PP2Page() {
       {/* 2–5 — Sub-flows */}
       {FLOW_SECTIONS.map(def => <FlowSection key={def.sectionId} def={def} />)}
 
-      {/* 6–14 — TC sections */}
-      {TC_SECTIONS.map(def => <TcSection key={def.sectionId} def={def} />)}
-
       {/* C — Coverage Report */}
       <section className="section" id="coverage-map">
         <SectionHeader num="C" title="Coverage Report" subtitle="States × Transitions × Test Cases" />
@@ -272,6 +268,7 @@ export default function PP2Page() {
           overviewTitle={overviewTitle}
           techniqueBadge={techniqueBadge}
           nodes={nodes} edges={edges} scenarios={scenarios}
+          tcMeta={TC_SECTIONS.flatMap(s => s.rows)}
         />
       ))}
 

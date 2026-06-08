@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import HomeContent from '@/components/HomeContent';
+import HomeContent from '@/client/components/HomeContent';
 import './home.css';
 
 export const metadata: Metadata = {

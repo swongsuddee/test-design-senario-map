@@ -3,35 +3,45 @@ import type { DagNode, DagEdge, Scenario } from '@/types';
 // ── DAG — User Auth API Action & State Flow ────────────────────────────────────
 //
 //         col 0          col 1              col 2
-// row 0:             [Initial State]                  ← state (circle)
-// row 1:  [Error 400] [POST req-otp]                  ← circle, rect
-// row 2:             [POST verify-otp]  [Error 401]   ← rect, circle
-// row 3: [Profile Loaded]              [POST refresh] ← circle, rect
+// row 0:             [Initial State]
+// row 1:  [Error 400] [POST req-otp]  [200 OK · Token]   ← assert req-otp 200
+// row 2:             [POST verify-otp]  [Error 401]
+// row 3:             [200 OK · Tokens]  [POST refresh]   ← assert verify-otp 200
+// row 4: [Profile Loaded]              [200 OK · New token] ← assert refresh 200
 //
 // Round nodes  = states  (where you are)
 // Rect  nodes  = actions (what you call)
+// TOKEN   = assert: req-otp → 200 + data.token truthy
+// AUTH_OK = assert: verify-otp → 200 + accessToken/refreshToken/isRegistered
+// REFR_OK = assert: refresh → 200 + new accessToken/refreshToken
 // E400 = validation / schema error (400)
 // E401 = wrong pin or unregistered phone (401)
 
 export const SM_NODES: DagNode[] = [
-  { id: 'INIT',    name: 'Initial\nState',        type: 'action',   row: 0, col: 1 },
-  { id: 'E400',    name: 'Error\n400',             type: 'decision', row: 1, col: 0 },
-  { id: 'OTP',     name: 'POST\nrequest-otp',      type: 'action',   row: 1, col: 1, shape: 'rect' },
-  { id: 'AUTH',    name: 'POST\nverify-otp',       type: 'action',   row: 2, col: 1, shape: 'rect' },
-  { id: 'E401',    name: 'Error\n401',             type: 'decision', row: 2, col: 2 },
-  { id: 'PROFILE', name: 'Profile\nLoaded',        type: 'expect',   row: 3, col: 0 },
-  { id: 'REFRESH', name: 'POST\nrefresh-token',    type: 'action',   row: 3, col: 2, shape: 'rect' },
+  { id: 'INIT',    name: 'Initial\nState',           type: 'action',   row: 0, col: 1 },
+  { id: 'E400',    name: 'Error\n400',                type: 'decision', row: 1, col: 0 },
+  { id: 'OTP',     name: 'POST\nrequest-otp',         type: 'action',   row: 1, col: 1, shape: 'rect' },
+  { id: 'TOKEN',   name: '200 OK\nOTP token',         type: 'expect',   row: 1, col: 2 },
+  { id: 'AUTH',    name: 'POST\nverify-otp',          type: 'action',   row: 2, col: 1, shape: 'rect' },
+  { id: 'E401',    name: 'Error\n401',                type: 'decision', row: 2, col: 2 },
+  { id: 'AUTH_OK', name: '200 OK\nTokens',            type: 'expect',   row: 3, col: 1 },
+  { id: 'REFRESH', name: 'POST\nrefresh',             type: 'action',   row: 3, col: 2, shape: 'rect' },
+  { id: 'PROFILE', name: 'Profile\nLoaded',           type: 'expect',   row: 4, col: 0 },
+  { id: 'REFR_OK', name: '200 OK\nNew token',         type: 'expect',   row: 4, col: 2 },
 ];
 
 export const SM_EDGES: DagEdge[] = [
   { from: 'INIT',    to: 'OTP',     label: '200 session'    },
   { from: 'INIT',    to: 'E400',    label: 'bad phone 400'  },
-  { from: 'OTP',     to: 'AUTH',    label: 'bypass pin'     },
+  { from: 'OTP',     to: 'TOKEN',   label: '200 · token'    },
   { from: 'OTP',     to: 'E400',    label: 'bad schema 400' },
-  { from: 'AUTH',    to: 'PROFILE', label: 'GET profile'    },
-  { from: 'AUTH',    to: 'REFRESH', label: 'refresh-token'  },
+  { from: 'TOKEN',   to: 'AUTH',    label: 'bypass pin'     },
+  { from: 'AUTH',    to: 'AUTH_OK', label: '200 · tokens'   },
   { from: 'AUTH',    to: 'E401',    label: 'wrong pin 401'  },
-  { from: 'REFRESH', to: 'PROFILE', label: 'GET profile'    },
+  { from: 'AUTH_OK', to: 'PROFILE', label: 'GET profile'    },
+  { from: 'AUTH_OK', to: 'REFRESH', label: 'refresh'        },
+  { from: 'REFRESH', to: 'REFR_OK', label: '200 · new token'},
+  { from: 'REFR_OK', to: 'PROFILE', label: 'GET profile'    },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -49,6 +59,12 @@ const REG_OTP_STEP = {
 };
 
 const VERIFY_BYPASS_STEP = (capture = '') => ({
+  action: 'POST /api/v1/auth/phone/verify-otp',
+  data:   `providerType: "PROVIDER_TYPE_PHONE", token: <otpToken>, pin: "123456"${capture}`,
+  expect: '200 · accessToken (string, non-empty) · refreshToken (string, non-empty) · isRegistered: true',
+});
+
+const VERIFY_BYPASS_REG_STEP = (capture = '') => ({
   action: 'POST /api/v1/auth/phone/verify-otp',
   data:   `providerType: "PROVIDER_TYPE_PHONE", token: <otpToken>, pin: "123456"${capture}`,
   expect: '200 · accessToken (string, non-empty) · refreshToken (string, non-empty) · isRegistered (boolean)',
@@ -69,8 +85,8 @@ export const SM_SCENARIOS: Scenario[] = [
   {
     id: 'UA-LOGIN-TC-001', type: 'Functional', typeCls: 'high',
     name: 'Bypass pin=123456 on registered phone → 200 + full token contract',
-    activePath:  ['INIT', 'OTP', 'AUTH'],
-    activeEdges: [['INIT','OTP'], ['OTP','AUTH']],
+    activePath:  ['INIT', 'OTP', 'TOKEN', 'AUTH', 'AUTH_OK'],
+    activeEdges: [['INIT','OTP'], ['OTP','TOKEN'], ['TOKEN','AUTH'], ['AUTH','AUTH_OK']],
     steps: [
       INIT_OTP_STEP,
       VERIFY_BYPASS_STEP(),
@@ -80,8 +96,8 @@ export const SM_SCENARIOS: Scenario[] = [
   {
     id: 'UA-LOGIN-TC-002', type: 'Functional', typeCls: 'high',
     name: 'accessToken from bypass is usable — GET /user/profile → 200',
-    activePath:  ['INIT', 'OTP', 'AUTH', 'PROFILE'],
-    activeEdges: [['INIT','OTP'], ['OTP','AUTH'], ['AUTH','PROFILE']],
+    activePath:  ['INIT', 'OTP', 'TOKEN', 'AUTH', 'AUTH_OK', 'PROFILE'],
+    activeEdges: [['INIT','OTP'], ['OTP','TOKEN'], ['TOKEN','AUTH'], ['AUTH','AUTH_OK'], ['AUTH_OK','PROFILE']],
     steps: [
       INIT_OTP_STEP,
       VERIFY_BYPASS_STEP(' · capture accessToken'),
@@ -91,14 +107,14 @@ export const SM_SCENARIOS: Scenario[] = [
 
   {
     id: 'UA-LOGIN-TC-003', type: 'Functional', typeCls: 'high',
-    name: 'refreshToken renews accessToken — POST /auth/refresh-token → 200',
-    activePath:  ['INIT', 'OTP', 'AUTH', 'REFRESH', 'PROFILE'],
-    activeEdges: [['INIT','OTP'], ['OTP','AUTH'], ['AUTH','REFRESH'], ['REFRESH','PROFILE']],
+    name: 'refreshToken renews accessToken — POST /api/v1/auth/refresh → 200',
+    activePath:  ['INIT', 'OTP', 'TOKEN', 'AUTH', 'AUTH_OK', 'REFRESH', 'REFR_OK', 'PROFILE'],
+    activeEdges: [['INIT','OTP'], ['OTP','TOKEN'], ['TOKEN','AUTH'], ['AUTH','AUTH_OK'], ['AUTH_OK','REFRESH'], ['REFRESH','REFR_OK'], ['REFR_OK','PROFILE']],
     steps: [
       INIT_OTP_STEP,
       { ...VERIFY_BYPASS_STEP(' · capture refreshToken'), expect: '200 · capture refreshToken from data.refreshToken' },
       {
-        action: 'POST /api/v1/auth/refresh-token',
+        action: 'POST /api/v1/auth/refresh',
         data:   'refreshToken: <refreshToken>',
         expect: '200 · new accessToken (string, non-empty) · new refreshToken (string, non-empty)',
       },
@@ -109,8 +125,8 @@ export const SM_SCENARIOS: Scenario[] = [
   {
     id: 'UA-LOGIN-TC-004', type: 'Negative', typeCls: 'ep',
     name: 'pin=000000 (wrong, non-bypass) → 401',
-    activePath:  ['INIT', 'OTP', 'AUTH', 'E401'],
-    activeEdges: [['INIT','OTP'], ['OTP','AUTH'], ['AUTH','E401']],
+    activePath:  ['INIT', 'OTP', 'TOKEN', 'AUTH', 'E401'],
+    activeEdges: [['INIT','OTP'], ['OTP','TOKEN'], ['TOKEN','AUTH'], ['AUTH','E401']],
     steps: [
       INIT_OTP_STEP,
       {
@@ -166,8 +182,8 @@ export const SM_SCENARIOS: Scenario[] = [
   {
     id: 'UA-LOGIN-TC-008', type: 'Negative', typeCls: 'ep',
     name: 'Unregistered phone + bypass pin=123456 → 401 or 404',
-    activePath:  ['INIT', 'OTP', 'AUTH', 'E401'],
-    activeEdges: [['INIT','OTP'], ['OTP','AUTH'], ['AUTH','E401']],
+    activePath:  ['INIT', 'OTP', 'TOKEN', 'AUTH', 'E401'],
+    activeEdges: [['INIT','OTP'], ['OTP','TOKEN'], ['TOKEN','AUTH'], ['AUTH','E401']],
     steps: [
       {
         action: 'POST /api/v1/auth/phone/request-otp',
@@ -184,21 +200,35 @@ export const SM_SCENARIOS: Scenario[] = [
 
   {
     id: 'UA-LOGIN-TC-009', type: 'Negative', typeCls: 'ep',
-    name: 'missing phone field in request-otp → 400',
+    name: 'missing providerType on verify-otp → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
     steps: [
       {
-        action: 'POST /api/v1/auth/phone/request-otp',
-        data:   '{ countryCode: "+66" }  ← phoneNumber omitted',
-        expect: '400 — required field phoneNumber is missing',
+        action: 'POST /api/v1/auth/phone/verify-otp',
+        data:   '{ token: "dummy-token", pin: "123456" }  ← providerType omitted',
+        expect: '400 — required field providerType is missing',
       },
     ],
   },
 
   {
     id: 'UA-LOGIN-TC-010', type: 'Negative', typeCls: 'ep',
-    name: 'missing otp field in verify-otp → 400',
+    name: 'missing token on verify-otp → 400',
+    activePath:  ['INIT', 'E400'],
+    activeEdges: [['INIT','E400']],
+    steps: [
+      {
+        action: 'POST /api/v1/auth/phone/verify-otp',
+        data:   '{ providerType: "PROVIDER_TYPE_PHONE", pin: "123456" }  ← token omitted',
+        expect: '400 — required field token is missing',
+      },
+    ],
+  },
+
+  {
+    id: 'UA-LOGIN-TC-011', type: 'Negative', typeCls: 'ep',
+    name: 'missing pin on verify-otp → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
     steps: [
@@ -211,57 +241,43 @@ export const SM_SCENARIOS: Scenario[] = [
   },
 
   {
-    id: 'UA-LOGIN-TC-011', type: 'Negative', typeCls: 'ep',
-    name: 'empty body {} → 400',
+    id: 'UA-LOGIN-TC-012', type: 'Negative', typeCls: 'ep',
+    name: 'empty verify-otp body {} → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
     steps: [
       {
         action: 'POST /api/v1/auth/phone/verify-otp',
         data:   '{}  ← empty body',
-        expect: '400 — all required fields are missing',
+        expect: '400 — all required fields (providerType, token, pin) are missing',
       },
     ],
   },
 
   {
-    id: 'UA-LOGIN-TC-012', type: 'Boundary', typeCls: 'bva',
-    name: 'phone 8 digits (below ^[0-9]{9,10}$) → request-otp → 400',
+    id: 'UA-LOGIN-TC-013', type: 'Negative', typeCls: 'ep',
+    name: 'missing countryCode on request-otp setup → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
     steps: [
       {
         action: 'POST /api/v1/auth/phone/request-otp',
-        data:   'countryCode: "+66", phoneNumber: "08123456" (8 digits — below min 9)',
-        expect: '400 — phoneNumber fails ^[0-9]{9,10}$ validation',
-      },
-    ],
-  },
-
-  {
-    id: 'UA-LOGIN-TC-013', type: 'Boundary', typeCls: 'bva',
-    name: 'phone 11 digits (above ^[0-9]{9,10}$) → request-otp → 400',
-    activePath:  ['INIT', 'E400'],
-    activeEdges: [['INIT','E400']],
-    steps: [
-      {
-        action: 'POST /api/v1/auth/phone/request-otp',
-        data:   'countryCode: "+66", phoneNumber: "08123456789" (11 digits — above max 10)',
-        expect: '400 — phoneNumber fails ^[0-9]{9,10}$ validation',
+        data:   '{ phoneNumber: "0812345678" }  ← countryCode omitted',
+        expect: '400 — required field countryCode is missing',
       },
     ],
   },
 
   {
     id: 'UA-LOGIN-TC-014', type: 'Negative', typeCls: 'ep',
-    name: 'phone with +66 prefix → request-otp → 400',
+    name: 'missing phoneNumber on request-otp setup → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
     steps: [
       {
         action: 'POST /api/v1/auth/phone/request-otp',
-        data:   'countryCode: "+66", phoneNumber: "+66812345678"  ← + sign rejected by pattern',
-        expect: '400 — phoneNumber pattern ^[0-9]{9,10}$ rejects non-digit characters',
+        data:   '{ countryCode: "+66" }  ← phoneNumber omitted',
+        expect: '400 — required field phoneNumber is missing',
       },
     ],
   },
@@ -279,21 +295,7 @@ export const SM_SCENARIOS: Scenario[] = [
   },
 
   {
-    id: 'UA-REG-TC-002', type: 'Boundary', typeCls: 'bva',
-    name: '10-digit phone (upper BVA boundary) → request-otp → 200',
-    activePath:  ['INIT', 'OTP'],
-    activeEdges: [['INIT','OTP']],
-    steps: [
-      {
-        action: 'POST /api/v1/auth/phone/request-otp',
-        data:   'countryCode: "+66", phoneNumber: "0" + String(Date.now()).slice(-9) (10 digits)',
-        expect: '200 · data.token is truthy — 10-digit phone is accepted (max boundary)',
-      },
-    ],
-  },
-
-  {
-    id: 'UA-REG-TC-003', type: 'Functional', typeCls: 'high',
+    id: 'UA-REG-TC-002', type: 'Functional', typeCls: 'high',
     name: 'Re-request OTP same phone → 200 (idempotent re-send)',
     activePath:  ['INIT', 'OTP'],
     activeEdges: [['INIT','OTP']],
@@ -308,7 +310,104 @@ export const SM_SCENARIOS: Scenario[] = [
   },
 
   {
-    id: 'UA-REG-TC-004', type: 'Boundary', typeCls: 'bva',
+    id: 'UA-REG-TC-003', type: 'Negative', typeCls: 'ep',
+    name: 'Missing countryCode → request-otp → 400',
+    activePath:  ['INIT', 'E400'],
+    activeEdges: [['INIT','E400']],
+    steps: [
+      {
+        action: 'POST /api/v1/auth/phone/request-otp',
+        data:   '{ phoneNumber: String(Date.now()).slice(-9) }  ← countryCode omitted',
+        expect: '400 — required field countryCode is missing',
+      },
+    ],
+  },
+
+  {
+    id: 'UA-REG-TC-004', type: 'Negative', typeCls: 'ep',
+    name: 'Missing phoneNumber → request-otp → 400',
+    activePath:  ['INIT', 'E400'],
+    activeEdges: [['INIT','E400']],
+    steps: [
+      {
+        action: 'POST /api/v1/auth/phone/request-otp',
+        data:   '{ countryCode: "+66" }  ← phoneNumber omitted',
+        expect: '400 — required field phoneNumber is missing',
+      },
+    ],
+  },
+
+  {
+    id: 'UA-REG-TC-005', type: 'Negative', typeCls: 'ep',
+    name: 'Empty request-otp body {} → 400',
+    activePath:  ['INIT', 'E400'],
+    activeEdges: [['INIT','E400']],
+    steps: [
+      {
+        action: 'POST /api/v1/auth/phone/request-otp',
+        data:   '{}  ← empty body',
+        expect: '400 — all required fields (countryCode, phoneNumber) are missing',
+      },
+    ],
+  },
+
+  {
+    id: 'UA-REG-TC-006', type: 'Functional', typeCls: 'high',
+    name: 'request-otp → verify-otp bypass → 200 + full token contract',
+    activePath:  ['INIT', 'OTP', 'TOKEN', 'AUTH', 'AUTH_OK'],
+    activeEdges: [['INIT','OTP'], ['OTP','TOKEN'], ['TOKEN','AUTH'], ['AUTH','AUTH_OK']],
+    steps: [
+      REG_OTP_STEP,
+      VERIFY_BYPASS_REG_STEP(),
+    ],
+  },
+
+  {
+    id: 'UA-REG-TC-007', type: 'Functional', typeCls: 'high',
+    name: 'Full new-user journey: request-otp → verify-otp → GET profile → id is non-empty',
+    activePath:  ['INIT', 'OTP', 'TOKEN', 'AUTH', 'AUTH_OK', 'PROFILE'],
+    activeEdges: [['INIT','OTP'], ['OTP','TOKEN'], ['TOKEN','AUTH'], ['AUTH','AUTH_OK'], ['AUTH_OK','PROFILE']],
+    steps: [
+      REG_OTP_STEP,
+      VERIFY_BYPASS_REG_STEP(' · capture accessToken'),
+      {
+        ...GET_PROFILE_STEP('accessToken'),
+        expect: '200 · profile.id is a non-empty string (new user auto-created on first verify-otp)',
+      },
+    ],
+  },
+
+  {
+    id: 'UA-REG-TC-008', type: 'Functional', typeCls: 'high',
+    name: 'Second login same phone → GET profile → userId matches first login (returning user)',
+    activePath:  ['INIT', 'OTP', 'TOKEN', 'AUTH', 'AUTH_OK', 'PROFILE'],
+    activeEdges: [['INIT','OTP'], ['OTP','TOKEN'], ['TOKEN','AUTH'], ['AUTH','AUTH_OK'], ['AUTH_OK','PROFILE']],
+    steps: [
+      { ...REG_OTP_STEP, action: 'First login — POST /api/v1/auth/phone/request-otp' },
+      { ...VERIFY_BYPASS_REG_STEP(' · capture firstAccessToken'), action: 'First login — POST /api/v1/auth/phone/verify-otp' },
+      { ...GET_PROFILE_STEP('firstAccessToken'), expect: '200 · capture profile.id as firstUserId' },
+      { action: 'Second login — POST /api/v1/auth/phone/request-otp (same phone)', data: 'countryCode: "+66", phoneNumber: <same as step 1>', expect: '200 · new otpToken' },
+      { action: 'Second login — POST /api/v1/auth/phone/verify-otp', data: 'providerType: "PROVIDER_TYPE_PHONE", token: <otpToken2>, pin: "123456"', expect: '200 · capture secondAccessToken' },
+      { ...GET_PROFILE_STEP('secondAccessToken'), expect: '200 · profile.id === firstUserId — same user account returned' },
+    ],
+  },
+
+  {
+    id: 'UA-REG-TC-009', type: 'Boundary', typeCls: 'bva',
+    name: '10-digit phone (upper BVA boundary) → request-otp → 200',
+    activePath:  ['INIT', 'OTP'],
+    activeEdges: [['INIT','OTP']],
+    steps: [
+      {
+        action: 'POST /api/v1/auth/phone/request-otp',
+        data:   'countryCode: "+66", phoneNumber: "0" + String(Date.now()).slice(-9) (10 digits)',
+        expect: '200 · data.token is truthy — 10-digit phone is accepted (max boundary)',
+      },
+    ],
+  },
+
+  {
+    id: 'UA-REG-TC-010', type: 'Boundary', typeCls: 'bva',
     name: 'phone 8 digits (below min 9) → request-otp → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
@@ -322,7 +421,7 @@ export const SM_SCENARIOS: Scenario[] = [
   },
 
   {
-    id: 'UA-REG-TC-005', type: 'Boundary', typeCls: 'bva',
+    id: 'UA-REG-TC-011', type: 'Boundary', typeCls: 'bva',
     name: 'phone 11 digits (above max 10) → request-otp → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
@@ -336,7 +435,7 @@ export const SM_SCENARIOS: Scenario[] = [
   },
 
   {
-    id: 'UA-REG-TC-006', type: 'Negative', typeCls: 'ep',
+    id: 'UA-REG-TC-012', type: 'Negative', typeCls: 'ep',
     name: 'Phone contains letters → request-otp → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
@@ -350,7 +449,7 @@ export const SM_SCENARIOS: Scenario[] = [
   },
 
   {
-    id: 'UA-REG-TC-007', type: 'Negative', typeCls: 'ep',
+    id: 'UA-REG-TC-013', type: 'Negative', typeCls: 'ep',
     name: 'Phone with +66 prefix → request-otp → 400',
     activePath:  ['INIT', 'E400'],
     activeEdges: [['INIT','E400']],
@@ -360,61 +459,6 @@ export const SM_SCENARIOS: Scenario[] = [
         data:   'countryCode: "+66", phoneNumber: "+66812345678"',
         expect: '400 — + sign rejected; phoneNumber must be ^[0-9]{9,10}$ with no prefix',
       },
-    ],
-  },
-
-  {
-    id: 'UA-REG-TC-008', type: 'Negative', typeCls: 'ep',
-    name: 'Missing phone field → request-otp → 400',
-    activePath:  ['INIT', 'E400'],
-    activeEdges: [['INIT','E400']],
-    steps: [
-      {
-        action: 'POST /api/v1/auth/phone/request-otp',
-        data:   '{ countryCode: "+66" }  ← phoneNumber omitted',
-        expect: '400 — required field phoneNumber is missing',
-      },
-    ],
-  },
-
-  {
-    id: 'UA-REG-TC-009', type: 'Functional', typeCls: 'high',
-    name: 'request-otp → verify-otp bypass → 200 + full token contract',
-    activePath:  ['INIT', 'OTP', 'AUTH'],
-    activeEdges: [['INIT','OTP'], ['OTP','AUTH']],
-    steps: [
-      REG_OTP_STEP,
-      VERIFY_BYPASS_STEP(),
-    ],
-  },
-
-  {
-    id: 'UA-REG-TC-010', type: 'Functional', typeCls: 'high',
-    name: 'Full new-user journey: request-otp → verify-otp → GET profile → id is non-empty',
-    activePath:  ['INIT', 'OTP', 'AUTH', 'PROFILE'],
-    activeEdges: [['INIT','OTP'], ['OTP','AUTH'], ['AUTH','PROFILE']],
-    steps: [
-      REG_OTP_STEP,
-      VERIFY_BYPASS_STEP(' · capture accessToken'),
-      {
-        ...GET_PROFILE_STEP('accessToken'),
-        expect: '200 · profile.id is a non-empty string (new user auto-created on first verify-otp)',
-      },
-    ],
-  },
-
-  {
-    id: 'UA-REG-TC-011', type: 'Functional', typeCls: 'high',
-    name: 'Second login same phone → GET profile → userId matches first login (returning user)',
-    activePath:  ['INIT', 'OTP', 'AUTH', 'PROFILE'],
-    activeEdges: [['INIT','OTP'], ['OTP','AUTH'], ['AUTH','PROFILE']],
-    steps: [
-      { ...REG_OTP_STEP, action: 'First login — POST /api/v1/auth/phone/request-otp' },
-      { ...VERIFY_BYPASS_STEP(' · capture firstAccessToken'), action: 'First login — POST /api/v1/auth/phone/verify-otp' },
-      { ...GET_PROFILE_STEP('firstAccessToken'), expect: '200 · capture profile.id as firstUserId' },
-      { action: 'Second login — POST /api/v1/auth/phone/request-otp (same phone)', data: 'countryCode: "+66", phoneNumber: <same as step 1>', expect: '200 · new otpToken' },
-      { action: 'Second login — POST /api/v1/auth/phone/verify-otp', data: 'providerType: "PROVIDER_TYPE_PHONE", token: <otpToken2>, pin: "123456"', expect: '200 · capture secondAccessToken' },
-      { ...GET_PROFILE_STEP('secondAccessToken'), expect: '200 · profile.id === firstUserId — same user account returned' },
     ],
   },
 ];
