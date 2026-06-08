@@ -338,6 +338,16 @@ tr:hover td { background: rgba(255,255,255,.025); }
 .badge-closed   { background: rgba(139,144,167,.08); color: #6b7088;  border: 1px solid rgba(139,144,167,.15); }
 
 /* ── CLARIFY SECTION ─────────────────────────────────────────────────────── */
+.clarify-wrap { display: flex; flex-direction: column; gap: 12px; }
+.clarify-lang-bar { display: flex; justify-content: flex-end; gap: 4px; }
+.clarify-lang-btn {
+  padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; cursor: pointer; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--muted); transition: all .15s;
+}
+.clarify-lang-btn.active {
+  background: rgba(33,150,243,.15); color: #42a5f5; border-color: rgba(33,150,243,.3);
+}
 .clarify-list { display: flex; flex-direction: column; gap: 12px; }
 .clarify-card {
   background: var(--surface); border: 1px solid var(--border);
@@ -474,8 +484,6 @@ details[open] > .clarify-resolved-toggle::before { transform: rotate(90deg); }
   display: flex; align-items: center; gap: 10px;
 }
 .diagram-subtitle { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
-.mermaid { text-align: center; }
-
 /* ── STATE/TRANSITION REFERENCE ──────────────────────────────────────────── */
 .ref-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;

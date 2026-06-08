@@ -56,6 +56,7 @@ export default function DagHeatmap({
   // ── Count how many scenarios hit each node / edge ─────────────────────────
   const nodeCounts: Record<string, number> = {};
   const edgeCounts: Record<string, number> = {};
+  const autoHitNodes = new Set<string>();
 
   for (const sc of scenarios) {
     for (const id of sc.activePath)
@@ -63,6 +64,9 @@ export default function DagHeatmap({
     for (const [f, t] of sc.activeEdges) {
       const k = `${f}→${t}`;
       edgeCounts[k] = (edgeCounts[k] ?? 0) + 1;
+    }
+    if (sc.typeCls !== 'manual') {
+      for (const id of sc.activePath) autoHitNodes.add(id);
     }
   }
 
@@ -122,8 +126,9 @@ export default function DagHeatmap({
 
         {/* ── Nodes ── */}
         {nodes.map(node => {
-          const count  = nodeCounts[node.id] ?? 0;
-          const t      = count / maxNode;
+          const count       = nodeCounts[node.id] ?? 0;
+          const manualOnly  = count > 0 && !autoHitNodes.has(node.id);
+          const t           = count / maxNode;
           const px     = ncx(node, cellW, pad);
           const py     = ncy(node, cellH, pad);
           const isRect = node.shape === 'rect';
@@ -165,7 +170,7 @@ export default function DagHeatmap({
                 {node.id}
               </text>
 
-              {count > 0 && (
+              {count > 0 && !manualOnly && (
                 <g>
                   <circle cx={bx} cy={by} r={9}
                     fill={t > 0.5 ? '#FF6B35' : '#2a1f10'}
@@ -175,6 +180,18 @@ export default function DagHeatmap({
                     fill="#fff" fontSize="8px" fontWeight="700"
                     fontFamily="Segoe UI,system-ui,sans-serif">
                     {count}
+                  </text>
+                </g>
+              )}
+              {manualOnly && (
+                <g>
+                  <circle cx={bx} cy={by} r={9}
+                    fill="#1e2032" stroke="#505878" strokeWidth={1} />
+                  <text x={bx} y={by}
+                    textAnchor="middle" dominantBaseline="middle"
+                    fill="#8090b0" fontSize="10px" fontWeight="700"
+                    fontFamily="Segoe UI,system-ui,sans-serif">
+                    ×
                   </text>
                 </g>
               )}
@@ -197,6 +214,14 @@ export default function DagHeatmap({
         ))}
         <span style={{ fontSize: 10 }}>{maxNode}</span>
         <span style={{ marginLeft: 6, fontSize: 10, color: '#404568' }}>({total} scenarios)</span>
+        <span style={{ marginLeft: 10, color: '#3a3f58' }}>|</span>
+        <svg width={18} height={18} style={{ flexShrink: 0 }}>
+          <circle cx={9} cy={9} r={9} fill="#1e2032" stroke="#505878" strokeWidth={1} />
+          <text x={9} y={9} textAnchor="middle" dominantBaseline="middle"
+            fill="#8090b0" fontSize="10" fontWeight="700"
+            fontFamily="Segoe UI,system-ui,sans-serif">×</text>
+        </svg>
+        <span style={{ fontSize: 10, color: '#505878' }}>Manual only</span>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import type { FlowSectionDef } from '@/types';
-import MermaidChart from './MermaidChart';
+import FlowChart from './FlowChart';
 
 function RefGrid({ states, transitions }: { states: [string,string][]; transitions: [string,string][] }) {
   return (
@@ -46,7 +46,7 @@ export default function FlowSection({ def }: { def: FlowSectionDef }) {
             <div className="diagram-subtitle">From App Launch through all auth paths to Home Page</div>
           </>
         )}
-        <MermaidChart chart={def.chart} />
+        <FlowChart chart={def.chart} />
       </div>
     </section>
   );

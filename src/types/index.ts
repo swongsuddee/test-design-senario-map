@@ -76,8 +76,11 @@ export interface ClarifyItem {
   type: ClarifyType;
   status: ClarifyStatus;
   title: string;
+  title_th?: string;
   body: string;
+  body_th?: string;
   resolution?: string;
+  resolution_th?: string;
   affectedTc?: string;
   date?: string;
 }

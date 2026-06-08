@@ -61,23 +61,29 @@ export default async function DynamicStoryPage({ params }: { params: Promise<{ s
   const scenarioSectionsMeta = getScenarioSections(db, storyId);
   const contractEndpoints = getContractEndpoints(db, storyId);
 
-  // ── TypeScript modules ─────────────────────────────────────────────────────
-  const flowsModule     = await FLOWS_REGISTRY[slug]?.();
-  const tcModule        = await TC_REGISTRY[slug]?.();
-  const conflictsModule = await CONFLICT_REGISTRY[slug]?.();
+  // ── TypeScript modules + scenario data (all in parallel) ──────────────────
+  const smapMeta = scenarioSectionsMeta.length === 0 ? SCENARIOMAP_META[slug] : undefined;
+  const smapLoader = smapMeta ? SCENARIO_DATA[slug]?.['scenariomap'] : undefined;
 
-  // ── Scenario data ──────────────────────────────────────────────────────────
-  // Case 1: DB-driven multi-section (pp2 — uses story_scenario_section rows)
+  // Case 1: DB-driven multi-section — fire all loaders immediately
   const scenarioDataMap: Record<string, { SM_NODES: any[]; SM_EDGES: any[]; SM_SCENARIOS: any[] }> = {};
-  for (const sec of scenarioSectionsMeta) {
-    const loader = SCENARIO_DATA[slug]?.[sec.dataKey];
-    if (loader) scenarioDataMap[sec.dataKey] = await loader();
-  }
+  const secLoadsP = Promise.all(
+    scenarioSectionsMeta.map(async (sec) => {
+      const loader = SCENARIO_DATA[slug]?.[sec.dataKey];
+      if (loader) scenarioDataMap[sec.dataKey] = await loader();
+    })
+  );
+
+  // Await all module loads concurrently with the scenario section loads above
+  const [flowsModule, tcModule, conflictsModule, smapData] = await Promise.all([
+    FLOWS_REGISTRY[slug]?.(),
+    TC_REGISTRY[slug]?.(),
+    CONFLICT_REGISTRY[slug]?.(),
+    smapLoader ? smapLoader() : null,
+  ]);
 
   // Case 2: Registry-driven single section (all other stories with scenariomap.ts)
-  const smapMeta   = scenarioSectionsMeta.length === 0 ? SCENARIOMAP_META[slug] : undefined;
-  const smapLoader = smapMeta ? SCENARIO_DATA[slug]?.['scenariomap'] : undefined;
-  const smapData   = smapLoader ? await smapLoader() : null;
+  await secLoadsP;
 
   const tcMeta = tcModule?.TC_SECTIONS.flatMap((s: any) => s.rows) ?? [];
 

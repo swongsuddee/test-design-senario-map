@@ -2,11 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-type MermaidLib = {
-  initialize: (cfg: Record<string, unknown>) => void;
-  run: (opts: { nodes: Element[] }) => Promise<void>;
-};
-
 const TABS = [
   { id: 'overview',    label: 'overview'           },
   { id: 'requirement', label: 'requirement'         },
@@ -52,21 +47,6 @@ export default function TabBar({ conflictCount = 0 }: TabBarProps) {
       if (elTab === 'conflicts') hasConflictSection = true;
       el.style.display = elTab === tab ? '' : 'none';
     });
-
-    // Re-render Mermaid charts in newly visible sections (they fail when hidden on first render)
-    const mermaidLib = (window as unknown as { mermaid?: MermaidLib }).mermaid;
-    if (mermaidLib) {
-      const toRender: Element[] = [];
-      main.querySelectorAll<HTMLElement>('.mermaid[data-src]').forEach(el => {
-        const section = el.closest<HTMLElement>('.section, .hero, .meta-grid');
-        if (!section || section.style.display === 'none') return;
-        const src = el.getAttribute('data-src') ?? '';
-        el.removeAttribute('data-processed');
-        el.innerHTML = src;
-        toRender.push(el);
-      });
-      if (toRender.length) mermaidLib.run({ nodes: toRender }).catch(() => {});
-    }
 
     if (tab === 'conflicts') setNoConflicts(!hasConflictSection);
   }, []);
