@@ -206,10 +206,168 @@ async function init(): Promise<SqlJsDb> {
   db.run(`CREATE INDEX IF NOT EXISTS idx_scenario_tc        ON scenario    (tc_id)`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_test_step_scenario ON test_step   (scenario_id)`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS story_contract_endpoint (
+    id          TEXT PRIMARY KEY,
+    story_id    TEXT NOT NULL REFERENCES story(id),
+    method      TEXT NOT NULL,
+    path        TEXT NOT NULL,
+    req_note    TEXT NOT NULL DEFAULT '',
+    res_note    TEXT NOT NULL DEFAULT '',
+    method_cls  TEXT,
+    sort_order  INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_contract_req_row (
+    id              TEXT PRIMARY KEY,
+    story_id        TEXT NOT NULL REFERENCES story(id),
+    field           TEXT NOT NULL,
+    field_type      TEXT NOT NULL DEFAULT '',
+    constraint_text TEXT NOT NULL DEFAULT '',
+    required_text   TEXT NOT NULL DEFAULT '',
+    sort_order      INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_contract_res_row (
+    id          TEXT PRIMARY KEY,
+    story_id    TEXT NOT NULL REFERENCES story(id),
+    status_code TEXT NOT NULL,
+    body        TEXT NOT NULL DEFAULT '',
+    key_fields  TEXT NOT NULL DEFAULT '',
+    sort_order  INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_note (
+    id         TEXT PRIMARY KEY,
+    story_id   TEXT NOT NULL REFERENCES story(id),
+    title      TEXT NOT NULL DEFAULT '',
+    content    TEXT NOT NULL DEFAULT '',
+    note_type  TEXT NOT NULL DEFAULT 'note',
+    sort_order INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_note_item (
+    id         TEXT PRIMARY KEY,
+    note_id    TEXT NOT NULL REFERENCES story_note(id),
+    content    TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  // ── PP-2 story page tables ──────────────────────────────────────────────────
+  db.run(`CREATE TABLE IF NOT EXISTS story_seed (
+    story_id  TEXT PRIMARY KEY,
+    seeded_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_hero (
+    story_id    TEXT PRIMARY KEY REFERENCES story(id),
+    badge       TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT ''
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_hero_stat (
+    id         TEXT PRIMARY KEY,
+    story_id   TEXT NOT NULL REFERENCES story(id),
+    value      TEXT NOT NULL,
+    label      TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_meta (
+    story_id   TEXT NOT NULL REFERENCES story(id),
+    label      TEXT NOT NULL,
+    value      TEXT NOT NULL,
+    cls        TEXT NOT NULL DEFAULT '',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (story_id, label)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_technique (
+    id          TEXT PRIMARY KEY,
+    story_id    TEXT NOT NULL REFERENCES story(id),
+    module      TEXT NOT NULL,
+    badges_json TEXT NOT NULL DEFAULT '[]',
+    rationale   TEXT NOT NULL,
+    sort_order  INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_coverage_row (
+    id           TEXT PRIMARY KEY,
+    story_id     TEXT NOT NULL REFERENCES story(id),
+    module       TEXT NOT NULL,
+    badges_json  TEXT NOT NULL DEFAULT '[]',
+    existing_tcs TEXT NOT NULL DEFAULT '',
+    new_tc       TEXT,
+    risk_cls     TEXT NOT NULL DEFAULT 'low',
+    risk_label   TEXT NOT NULL DEFAULT 'Low',
+    pct          INTEGER NOT NULL DEFAULT 0,
+    sort_order   INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_coverage_stat (
+    id         TEXT PRIMARY KEY,
+    story_id   TEXT NOT NULL REFERENCES story(id),
+    cls        TEXT NOT NULL,
+    num        TEXT NOT NULL,
+    lbl        TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_coverage_note (
+    story_id          TEXT PRIMARY KEY REFERENCES story(id),
+    recommendation    TEXT NOT NULL DEFAULT '',
+    coverage_subtitle TEXT NOT NULL DEFAULT '',
+    orig_total        TEXT NOT NULL DEFAULT '',
+    new_total         TEXT NOT NULL DEFAULT ''
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_missing_coverage (
+    id         TEXT PRIMARY KEY,
+    story_id   TEXT NOT NULL REFERENCES story(id),
+    message    TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_test_data (
+    id           TEXT PRIMARY KEY,
+    story_id     TEXT NOT NULL REFERENCES story(id),
+    data_label   TEXT NOT NULL,
+    value_source TEXT NOT NULL,
+    sort_order   INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_automation_card (
+    id         TEXT PRIMARY KEY,
+    story_id   TEXT NOT NULL REFERENCES story(id),
+    title      TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_automation_item (
+    id         TEXT PRIMARY KEY,
+    card_id    TEXT NOT NULL REFERENCES story_automation_card(id),
+    content    TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS story_scenario_section (
+    id              TEXT PRIMARY KEY,
+    story_id        TEXT NOT NULL REFERENCES story(id),
+    letter          TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    subtitle        TEXT NOT NULL DEFAULT '',
+    overview_title  TEXT NOT NULL DEFAULT '',
+    technique_label TEXT,
+    technique_cls   TEXT,
+    data_key        TEXT NOT NULL,
+    sort_order      INTEGER NOT NULL DEFAULT 0
+  )`);
+
   // Rename legacy review_type 'gpt' → 'codex'
   db.run(`INSERT OR IGNORE INTO tc_reviews (story_id, tc_id, review_type)
     SELECT story_id, tc_id, 'codex' FROM tc_reviews WHERE review_type = 'gpt'`);
   db.run(`DELETE FROM tc_reviews WHERE review_type = 'gpt'`);
+
+  seedAll(db);
 
   // Normalize any slug-format story_ids (e.g. 'user-auth') → Jira key format ('USER-AUTH')
   const SLUG_TO_JIRA: Record<string, string> = {
@@ -247,6 +405,29 @@ async function init(): Promise<SqlJsDb> {
   }
 
   return db;
+}
+
+function seedAll(db: SqlJsDb) {
+  const seedDir = path.join(process.cwd(), 'db');
+  if (!fs.existsSync(seedDir)) return;
+  const files = fs.readdirSync(seedDir)
+    .filter((f: string) => /^seed-.+\.sql$/.test(f))
+    .sort();
+  let dirty = false;
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(seedDir, file), 'utf8');
+    const match = content.match(/INSERT OR IGNORE INTO story_seed[^;]+VALUES\s*\('([^']+)'\)/);
+    if (!match) continue;
+    const storyId = match[1];
+    const already = db.exec(`SELECT 1 FROM story_seed WHERE story_id = ? LIMIT 1`, [storyId]);
+    if (already.length && already[0].values.length) continue;
+    db.exec(content);
+    dirty = true;
+  }
+  if (dirty) {
+    if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+    fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
+  }
 }
 
 export function getDb(): Promise<SqlJsDb> {

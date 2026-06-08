@@ -43,3 +43,17 @@ next-env.d.ts
 
 # sqlite database
 /db/*.db
+
+# ── Project-specific content (excluded to keep the repo generic) ──────────────
+
+# Requirement docs (markdown files per story)
+/src/requirements/
+
+# Seed SQL files (contain story titles, test case summaries, project data)
+/db/seed-*.sql
+/db/schema-draft.md
+
+# Per-story TypeScript data files (flows, testcases, scenario maps, conflicts)
+/src/data/pp*/
+/src/data/org-auth/
+/src/data/user-*/
