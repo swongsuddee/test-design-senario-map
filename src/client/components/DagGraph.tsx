@@ -50,11 +50,18 @@ function ncy(n: DagNode, ch: number, p: number) { return p + n.row * ch + ch / 2
 // Point on the node boundary in direction (ux, uy) from center
 function boundaryPt(n: DagNode, ux: number, uy: number, cw: number, ch: number, p: number) {
   const px = ncx(n, cw, p), py = ncy(n, ch, p);
-  if (n.shape === 'rect') {
+  if (n.shape === 'rect' || n.shape === 'stadium') {
     const hw = nw(n) / 2, hh = NODE_H / 2;
     const tx = Math.abs(ux) > 1e-9 ? hw / Math.abs(ux) : 1e18;
     const ty = Math.abs(uy) > 1e-9 ? hh / Math.abs(uy) : 1e18;
     const t = Math.min(tx, ty);
+    return { x: px + t * ux, y: py + t * uy };
+  }
+  if (n.shape === 'diamond') {
+    const hw = nw(n) / 2, hh = NODE_H / 2;
+    const denom = (Math.abs(ux) > 1e-9 ? Math.abs(ux) / hw : 0)
+                + (Math.abs(uy) > 1e-9 ? Math.abs(uy) / hh : 0);
+    const t = denom > 1e-9 ? 1 / denom : 0;
     return { x: px + t * ux, y: py + t * uy };
   }
   return { x: px + ux * NODE_R, y: py + uy * NODE_R };
@@ -152,27 +159,44 @@ export default function DagGraph({
         const active = activeNodeSet.has(node.id);
         const clr = COLORS[node.type][active ? 'a' : 'm'];
         const accent = ACCENT[node.type];
-        const isRect = node.shape === 'rect';
+        const shape = node.shape ?? 'round';
+        const isRect    = shape === 'rect';
+        const isDiamond = shape === 'diamond';
+        const isStadium = shape === 'stadium';
         const lines = node.name.split('\n');
         const lh = 13;
         const textY0 = py - (lines.length - 1) * lh / 2;
+        const hw = nw(node) / 2, hh = NODE_H / 2;
 
         return (
           <g key={node.id}>
             {/* glow ring */}
-            {active && (isRect ? (
-              <rect x={px - nw(node) / 2 - 7} y={py - NODE_H / 2 - 7}
+            {active && (isDiamond ? (
+              <polygon
+                points={`${px},${py - hh - 7} ${px + hw + 7},${py} ${px},${py + hh + 7} ${px - hw - 7},${py}`}
+                fill="none" stroke={accent} strokeWidth={1} opacity={0.2} />
+            ) : isRect || isStadium ? (
+              <rect x={px - hw - 7} y={py - hh - 7}
                 width={nw(node) + 14} height={NODE_H + 14}
-                rx={10} fill="none" stroke={accent} strokeWidth={1} opacity={0.2} />
+                rx={isStadium ? hh + 7 : 10}
+                fill="none" stroke={accent} strokeWidth={1} opacity={0.2} />
             ) : (
               <circle cx={px} cy={py} r={NODE_R + 7}
                 fill="none" stroke={accent} strokeWidth={1} opacity={0.2} />
             ))}
 
             {/* shape */}
-            {isRect ? (
-              <rect x={px - nw(node) / 2} y={py - NODE_H / 2}
+            {isDiamond ? (
+              <polygon
+                points={`${px},${py - hh} ${px + hw},${py} ${px},${py + hh} ${px - hw},${py}`}
+                fill={clr.fill} stroke={clr.stroke} strokeWidth={active ? 2 : 1.5} />
+            ) : isRect ? (
+              <rect x={px - hw} y={py - hh}
                 width={nw(node)} height={NODE_H} rx={6}
+                fill={clr.fill} stroke={clr.stroke} strokeWidth={active ? 2 : 1.5} />
+            ) : isStadium ? (
+              <rect x={px - hw} y={py - hh}
+                width={nw(node)} height={NODE_H} rx={hh}
                 fill={clr.fill} stroke={clr.stroke} strokeWidth={active ? 2 : 1.5} />
             ) : (
               <circle cx={px} cy={py} r={NODE_R}
@@ -184,7 +208,7 @@ export default function DagGraph({
               <text key={i} x={px} y={textY0 + i * lh}
                 textAnchor="middle" dominantBaseline="middle"
                 fill={active ? '#e8eaf0' : '#505878'}
-                fontSize={isRect ? '10px' : '9.5px'}
+                fontSize={isRect || isStadium || isDiamond ? '10px' : '9.5px'}
                 fontWeight={active ? '700' : '400'}
                 fontFamily="Segoe UI,system-ui,sans-serif">
                 {ln}

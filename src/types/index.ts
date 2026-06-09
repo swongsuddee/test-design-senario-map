@@ -6,7 +6,7 @@ export interface DagNode {
   row: number;
   name: string;
   type: NodeType;
-  shape?: 'round' | 'rect'; // round = state (circle), rect = action (rectangle); defaults to round
+  shape?: 'round' | 'rect' | 'diamond' | 'stadium'; // round=circle (screen state), rect (action), diamond (decision), stadium/pill (terminal)
   details?: string;
 }
 

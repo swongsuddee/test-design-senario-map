@@ -29,11 +29,18 @@ function heatStroke(t: number) {
 
 function boundaryPt(n: DagNode, ux: number, uy: number, cw: number, ch: number, p: number) {
   const px = ncx(n, cw, p), py = ncy(n, ch, p);
-  if (n.shape === 'rect') {
+  if (n.shape === 'rect' || n.shape === 'stadium') {
     const hw = nw(n) / 2, hh = NODE_H / 2;
     const tx = Math.abs(ux) > 1e-9 ? hw / Math.abs(ux) : 1e18;
     const ty = Math.abs(uy) > 1e-9 ? hh / Math.abs(uy) : 1e18;
     const t  = Math.min(tx, ty);
+    return { x: px + t * ux, y: py + t * uy };
+  }
+  if (n.shape === 'diamond') {
+    const hw = nw(n) / 2, hh = NODE_H / 2;
+    const denom = (Math.abs(ux) > 1e-9 ? Math.abs(ux) / hw : 0)
+                + (Math.abs(uy) > 1e-9 ? Math.abs(uy) / hh : 0);
+    const t = denom > 1e-9 ? 1 / denom : 0;
     return { x: px + t * ux, y: py + t * uy };
   }
   return { x: px + ux * NODE_R, y: py + uy * NODE_R };
@@ -131,19 +138,37 @@ export default function DagHeatmap({
           const t           = count / maxNode;
           const px     = ncx(node, cellW, pad);
           const py     = ncy(node, cellH, pad);
-          const isRect = node.shape === 'rect';
+          const shape     = node.shape ?? 'round';
+          const isRect    = shape === 'rect';
+          const isDiamond = shape === 'diamond';
+          const isStadium = shape === 'stadium';
           const lines  = node.name.split('\n');
           const lh     = 13;
           const textY0 = py - (lines.length - 1) * lh / 2;
+          const hw = nw(node) / 2, hh = NODE_H / 2;
 
-          const bx = isRect ? px + nw(node) / 2 : px + NODE_R * 0.72;
-          const by = isRect ? py - NODE_H / 2    : py - NODE_R * 0.72;
+          const bx = (isRect || isStadium) ? px + hw
+                   : isDiamond             ? px + hw * 0.7
+                   : px + NODE_R * 0.72;
+          const by = (isRect || isStadium) ? py - hh
+                   : isDiamond             ? py - hh * 0.7
+                   : py - NODE_R * 0.72;
 
           return (
             <g key={node.id}>
-              {isRect ? (
-                <rect x={px - nw(node) / 2} y={py - NODE_H / 2}
+              {isDiamond ? (
+                <polygon
+                  points={`${px},${py - hh} ${px + hw},${py} ${px},${py + hh} ${px - hw},${py}`}
+                  fill={heatFill(t)} stroke={heatStroke(t)}
+                  strokeWidth={count > 0 ? lerp(1.5, 2.5, t) : 1} />
+              ) : isRect ? (
+                <rect x={px - hw} y={py - hh}
                   width={nw(node)} height={NODE_H} rx={6}
+                  fill={heatFill(t)} stroke={heatStroke(t)}
+                  strokeWidth={count > 0 ? lerp(1.5, 2.5, t) : 1} />
+              ) : isStadium ? (
+                <rect x={px - hw} y={py - hh}
+                  width={nw(node)} height={NODE_H} rx={hh}
                   fill={heatFill(t)} stroke={heatStroke(t)}
                   strokeWidth={count > 0 ? lerp(1.5, 2.5, t) : 1} />
               ) : (
@@ -156,13 +181,13 @@ export default function DagHeatmap({
                 <text key={i} x={px} y={textY0 + i * lh}
                   textAnchor="middle" dominantBaseline="middle"
                   fill={t > 0.4 ? '#d0d4f0' : '#505878'}
-                  fontSize={isRect ? '10px' : '9.5px'}
+                  fontSize={isRect || isStadium || isDiamond ? '10px' : '9.5px'}
                   fontFamily="Segoe UI,system-ui,sans-serif">
                   {ln}
                 </text>
               ))}
 
-              <text x={px} y={py + (isRect ? NODE_H / 2 : NODE_R) + 12}
+              <text x={px} y={py + (isRect || isStadium || isDiamond ? hh : NODE_R) + 12}
                 textAnchor="middle"
                 fill={t > 0.3 ? heatStroke(t) : '#383d60'}
                 fontSize="8px" fontWeight="700"
@@ -170,28 +195,19 @@ export default function DagHeatmap({
                 {node.id}
               </text>
 
-              {count > 0 && !manualOnly && (
+              {count > 0 && (
                 <g>
                   <circle cx={bx} cy={by} r={9}
-                    fill={t > 0.5 ? '#FF6B35' : '#2a1f10'}
-                    stroke={heatStroke(t)} strokeWidth={1} />
+                    fill={manualOnly ? '#1e2032' : t > 0.5 ? '#FF6B35' : '#2a1f10'}
+                    stroke={manualOnly ? '#505878' : heatStroke(t)}
+                    strokeWidth={1}
+                    strokeDasharray={manualOnly ? '2 2' : undefined} />
                   <text x={bx} y={by}
                     textAnchor="middle" dominantBaseline="middle"
-                    fill="#fff" fontSize="8px" fontWeight="700"
+                    fill={manualOnly ? '#8090b0' : '#fff'}
+                    fontSize="8px" fontWeight="700"
                     fontFamily="Segoe UI,system-ui,sans-serif">
                     {count}
-                  </text>
-                </g>
-              )}
-              {manualOnly && (
-                <g>
-                  <circle cx={bx} cy={by} r={9}
-                    fill="#1e2032" stroke="#505878" strokeWidth={1} />
-                  <text x={bx} y={by}
-                    textAnchor="middle" dominantBaseline="middle"
-                    fill="#8090b0" fontSize="10px" fontWeight="700"
-                    fontFamily="Segoe UI,system-ui,sans-serif">
-                    ×
                   </text>
                 </g>
               )}
@@ -216,10 +232,10 @@ export default function DagHeatmap({
         <span style={{ marginLeft: 6, fontSize: 10, color: '#404568' }}>({total} scenarios)</span>
         <span style={{ marginLeft: 10, color: '#3a3f58' }}>|</span>
         <svg width={18} height={18} style={{ flexShrink: 0 }}>
-          <circle cx={9} cy={9} r={9} fill="#1e2032" stroke="#505878" strokeWidth={1} />
+          <circle cx={9} cy={9} r={9} fill="#1e2032" stroke="#505878" strokeWidth={1} strokeDasharray="2 2" />
           <text x={9} y={9} textAnchor="middle" dominantBaseline="middle"
-            fill="#8090b0" fontSize="10" fontWeight="700"
-            fontFamily="Segoe UI,system-ui,sans-serif">×</text>
+            fill="#8090b0" fontSize="8" fontWeight="700"
+            fontFamily="Segoe UI,system-ui,sans-serif">n</text>
         </svg>
         <span style={{ fontSize: 10, color: '#505878' }}>Manual only</span>
       </div>
