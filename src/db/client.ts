@@ -146,6 +146,17 @@ async function init(): Promise<SqlJsDb> {
     PRIMARY KEY (conflict_id, tc_id)
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS clarify_comments (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    story_id    TEXT NOT NULL,
+    clarify_id  TEXT NOT NULL,
+    author      TEXT NOT NULL DEFAULT 'Me',
+    content     TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_clarify_comments ON clarify_comments (story_id, clarify_id)`);
+
   db.run(`CREATE TABLE IF NOT EXISTS scenario_map (
     id         TEXT PRIMARY KEY,
     story_id   TEXT NOT NULL REFERENCES story(id),
@@ -388,14 +399,14 @@ async function init(): Promise<SqlJsDb> {
     'user-profile': 'USER-PROFILE', 'user-events': 'USER-EVENTS',
   };
   for (const [slug, jiraId] of Object.entries(SLUG_TO_JIRA)) {
-    for (const tbl of ['tc_reviews', 'tc_comments', 'tc_rejections']) {
+    for (const tbl of ['tc_reviews', 'tc_comments', 'tc_rejections', 'clarify_comments']) {
       const exists = db.exec(`SELECT 1 FROM ${tbl} WHERE story_id = ? LIMIT 1`, [slug]);
       if (!exists.length || !exists[0].values.length) continue;
       if (tbl === 'tc_reviews') {
         db.run(`INSERT OR IGNORE INTO tc_reviews (story_id, tc_id, review_type)
           SELECT ?, tc_id, review_type FROM tc_reviews WHERE story_id = ?`, [jiraId, slug]);
-      } else if (tbl === 'tc_comments') {
-        db.run(`UPDATE tc_comments SET story_id = ? WHERE story_id = ?`, [jiraId, slug]);
+      } else if (tbl === 'tc_comments' || tbl === 'clarify_comments') {
+        db.run(`UPDATE ${tbl} SET story_id = ? WHERE story_id = ?`, [jiraId, slug]);
       } else {
         db.run(`INSERT OR REPLACE INTO tc_rejections (story_id, tc_id, reason, updated_at)
           SELECT ?, tc_id, reason, updated_at FROM tc_rejections WHERE story_id = ?`, [jiraId, slug]);

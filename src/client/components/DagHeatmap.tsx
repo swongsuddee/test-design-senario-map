@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useRef } from 'react';
 import type { DagEdge, DagNode, Scenario } from '@/types';
 
 interface Props {
@@ -7,6 +10,13 @@ interface Props {
   cellW?: number;
   cellH?: number;
   pad?: number;
+  fit?: boolean;
+}
+
+interface TooltipState {
+  node: DagNode;
+  x: number;
+  y: number;
 }
 
 const NODE_R = 30;
@@ -59,7 +69,11 @@ function edgePath(
 export default function DagHeatmap({
   nodes, edges, scenarios,
   cellW = 170, cellH = 100, pad = 52,
+  fit = true,
 }: Props) {
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // ── Count how many scenarios hit each node / edge ─────────────────────────
   const nodeCounts: Record<string, number> = {};
   const edgeCounts: Record<string, number> = {};
@@ -77,6 +91,21 @@ export default function DagHeatmap({
     }
   }
 
+  // ── Build per-node outcome list from scenarios that reach it ──────────────
+  // Collect the last step's expect from each scenario where this node appears,
+  // but only when the node is terminal in that scenario's path (it's where the
+  // scenario ends). Deduplicate so identical messages appear only once.
+  const nodeOutcomes: Record<string, string[]> = {};
+  for (const sc of scenarios) {
+    const terminalId = sc.activePath.at(-1);
+    if (!terminalId) continue;
+    const expect = sc.steps.at(-1)?.expect;
+    if (!expect) continue;
+    if (!nodeOutcomes[terminalId]) nodeOutcomes[terminalId] = [];
+    if (!nodeOutcomes[terminalId].includes(expect))
+      nodeOutcomes[terminalId].push(expect);
+  }
+
   const maxNode = Math.max(1, ...Object.values(nodeCounts));
   const maxEdge = Math.max(1, ...Object.values(edgeCounts));
   const total   = scenarios.length;
@@ -86,11 +115,21 @@ export default function DagHeatmap({
   const W = (maxCol + 1) * cellW + pad * 2;
   const H = (maxRow + 1) * cellH + pad * 2;
 
+  // ── Tooltip content ───────────────────────────────────────────────────────
+  const tipNode    = tooltip?.node;
+  const tipCount   = tipNode ? (nodeCounts[tipNode.id] ?? 0) : 0;
+  const tipDetails = tipNode?.details;
+  const tipOutcomes = tipNode ? (nodeOutcomes[tipNode.id] ?? []) : [];
+  const showTooltip = !!tooltip && !!(tipDetails || tipCount > 0);
+
   return (
-    <div>
+    <div ref={containerRef} style={{ position: 'relative' }}>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ display: 'block', width: '100%', maxWidth: W, height: 'auto' }}>
+        style={fit
+          ? { display: 'block', width: '100%', maxWidth: W, height: 'auto' }
+          : { display: 'block', minWidth: W, height: 'auto' }}
+        onMouseLeave={() => setTooltip(null)}>
         <defs>
           <marker id="hm-arr-hot" markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
             <path d="M 0 0 L 6 3 L 0 6 Z" fill="#FF6B35" opacity={0.8} />
@@ -155,7 +194,18 @@ export default function DagHeatmap({
                    : py - NODE_R * 0.72;
 
           return (
-            <g key={node.id}>
+            <g key={node.id} style={{ cursor: node.details ? 'help' : 'default' }}
+              onMouseEnter={(e) => {
+                const rect = containerRef.current?.getBoundingClientRect();
+                if (!rect) return;
+                setTooltip({ node, x: e.clientX - rect.left, y: e.clientY - rect.top });
+              }}
+              onMouseMove={(e) => {
+                const rect = containerRef.current?.getBoundingClientRect();
+                if (!rect) return;
+                setTooltip(prev => prev ? { ...prev, x: e.clientX - rect.left, y: e.clientY - rect.top } : null);
+              }}
+              onMouseLeave={() => setTooltip(null)}>
               {isDiamond ? (
                 <polygon
                   points={`${px},${py - hh} ${px + hw},${py} ${px},${py + hh} ${px - hw},${py}`}
@@ -215,6 +265,58 @@ export default function DagHeatmap({
           );
         })}
       </svg>
+
+      {/* ── Hover tooltip ── */}
+      {showTooltip && tooltip && (
+        <div style={{
+          position: 'absolute',
+          left: Math.min(tooltip.x + 14, W - 280),
+          top: tooltip.y + 14,
+          width: 268,
+          background: '#12141f',
+          border: '1px solid #2e3250',
+          borderRadius: 8,
+          padding: '10px 12px',
+          pointerEvents: 'none',
+          zIndex: 200,
+          boxShadow: '0 6px 24px rgba(0,0,0,0.6)',
+          fontFamily: 'Segoe UI,system-ui,sans-serif',
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: tipDetails || tipOutcomes.length > 0 ? 7 : 0 }}>
+            <span style={{ fontWeight: 700, fontSize: 11, color: '#d0d4f0' }}>
+              {tipNode!.name.replace('\n', ' ')}
+            </span>
+            {tipCount > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#FF6B35', background: '#2a1208', border: '1px solid #FF6B3566', borderRadius: 4, padding: '1px 5px' }}>
+                ×{tipCount}
+              </span>
+            )}
+          </div>
+
+          {/* Node details */}
+          {tipDetails && (
+            <div style={{ fontSize: 10.5, color: '#6878a0', lineHeight: 1.55, marginBottom: tipOutcomes.length > 0 ? 8 : 0 }}>
+              {tipDetails}
+            </div>
+          )}
+
+          {/* Deduplicated outcome messages from scenarios that end at this node */}
+          {tipOutcomes.length > 0 && (
+            <>
+              <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#404568', marginBottom: 5 }}>
+                {tipOutcomes.length === 1 ? 'Outcome' : `${tipOutcomes.length} distinct outcomes`}
+              </div>
+              {tipOutcomes.map((msg, i) => (
+                <div key={i} style={{ display: 'flex', gap: 6, marginBottom: i < tipOutcomes.length - 1 ? 4 : 0 }}>
+                  <span style={{ color: '#FF6B35', fontSize: 10, flexShrink: 0, marginTop: 1 }}>•</span>
+                  <span style={{ fontSize: 10.5, color: '#9098c0', lineHeight: 1.45 }}>{msg}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── Heat legend ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 8px 2px', fontSize: 11, color: '#505878' }}>

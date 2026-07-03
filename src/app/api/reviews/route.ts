@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllReviewed, getComments, getRejections, toggleReviewed } from '@/server/reviews';
+import { getAllReviewed, getComments, getClarifyComments, getRejections, toggleReviewed } from '@/server/reviews';
 import type { ReviewType } from '@/server/reviews';
 import { emitRefresh } from '@/server/bus';
 import { normalizeStoryId } from '@/server/normalize';
@@ -8,10 +8,10 @@ export async function GET(req: NextRequest) {
   try {
     const storyId = normalizeStoryId(req.nextUrl.searchParams.get('storyId') ?? '');
     if (!storyId) return NextResponse.json({ error: 'storyId required' }, { status: 400 });
-    const [reviews, comments, rejections] = await Promise.all([
-      getAllReviewed(storyId), getComments(storyId), getRejections(storyId),
+    const [reviews, comments, clarifyComments, rejections] = await Promise.all([
+      getAllReviewed(storyId), getComments(storyId), getClarifyComments(storyId), getRejections(storyId),
     ]);
-    return NextResponse.json({ ...reviews, comments, rejections });
+    return NextResponse.json({ ...reviews, comments, clarifyComments, rejections });
   } catch (err) {
     console.error('[reviews GET]', err);
     return NextResponse.json({ error: String(err) }, { status: 500 });

@@ -394,6 +394,11 @@ details[open] > .clarify-resolved-toggle::before { transform: rotate(90deg); }
 .clarify-resolved-body {
   padding-top: 4px;
 }
+.clarify-reply-area {
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
 
 /* ── REQUIREMENT SECTION ─────────────────────────────────────────────────── */
 .req-empty {
@@ -580,7 +585,8 @@ details[open] > .clarify-resolved-toggle::before { transform: rotate(90deg); }
 /* ── SCENARIO MAP ────────────────────────────────────────────────────────── */
 .dag-overview-card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 10px; padding: 24px; margin-bottom: 28px; overflow-x: auto;
+  border-radius: 10px; padding: 24px; margin-bottom: 28px;
+  max-height: 100vh; overflow: auto;
 }
 .dag-overview-header {
   display: flex; align-items: center; gap: 10px; margin-bottom: 14px;

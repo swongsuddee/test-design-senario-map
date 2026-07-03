@@ -442,6 +442,7 @@ export default function ScenarioSection({
   const pathname = usePathname();
   const storyId  = pathname?.split('/')[1] ?? '';
   const { state, toggle, comments, addComment, editComment, deleteComment } = useReviews(storyId);
+  const [heatmapFit, setHeatmapFit] = useState(true);
 
   const allAuthors = useMemo(() => {
     const seen = new Set<string>();
@@ -477,8 +478,34 @@ export default function ScenarioSection({
           <div className="dag-overview-header">
             <span className="dag-overview-title">Node Hit Frequency</span>
             {techniqueBadge && <Badge cls={techniqueBadge.cls} label={techniqueBadge.label} />}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
+              <button
+                onClick={() => setHeatmapFit(true)}
+                title="Fit to width"
+                style={{
+                  padding: '3px 8px', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: '4px 0 0 4px', border: '1px solid var(--border)',
+                  background: heatmapFit ? 'var(--accent)' : 'var(--surface)',
+                  color: heatmapFit ? '#fff' : 'var(--muted)',
+                  letterSpacing: '0.5px',
+                }}>
+                FIT
+              </button>
+              <button
+                onClick={() => setHeatmapFit(false)}
+                title="Scroll horizontally"
+                style={{
+                  padding: '3px 8px', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                  borderRadius: '0 4px 4px 0', border: '1px solid var(--border)', borderLeft: 'none',
+                  background: !heatmapFit ? 'var(--accent)' : 'var(--surface)',
+                  color: !heatmapFit ? '#fff' : 'var(--muted)',
+                  letterSpacing: '0.5px',
+                }}>
+                SCROLL
+              </button>
+            </div>
           </div>
-          <DagHeatmap nodes={nodes} edges={edges} scenarios={scenarios} {...overviewOpts} />
+          <DagHeatmap nodes={nodes} edges={edges} scenarios={scenarios} {...overviewOpts} fit={heatmapFit} />
         </div>
       </section>
 

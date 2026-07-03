@@ -127,3 +127,56 @@ export async function setRejection(
   }
   await persist();
 }
+
+// ── Clarify Comments ────────────────────────────────────────────────────────────
+
+export async function getClarifyComments(storyId: string): Promise<CommentsMap> {
+  const db  = await getDb();
+  const out: CommentsMap = {};
+  const res = db.exec(
+    'SELECT id, clarify_id, author, content, created_at, updated_at FROM clarify_comments WHERE story_id = ? ORDER BY created_at ASC',
+    [storyId],
+  );
+  if (!res.length) return out;
+  for (const [id, clarify_id, author, content, created_at, updated_at] of res[0].values as [number, string, string, string, string, string][]) {
+    if (!out[clarify_id]) out[clarify_id] = [];
+    out[clarify_id].push({ id, author, content, createdAt: created_at, updatedAt: updated_at });
+  }
+  return out;
+}
+
+export async function addClarifyComment(
+  storyId: string, clarifyId: string, author: string, content: string,
+): Promise<Comment> {
+  const db = await getDb();
+  db.run(
+    'INSERT INTO clarify_comments (story_id, clarify_id, author, content) VALUES (?, ?, ?, ?)',
+    [storyId, clarifyId, author, content],
+  );
+  const res = db.exec('SELECT id, author, content, created_at, updated_at FROM clarify_comments WHERE id = last_insert_rowid()');
+  await persist();
+  const [id, auth, cont, created_at, updated_at] = res[0].values[0] as [number, string, string, string, string];
+  return { id, author: auth, content: cont, createdAt: created_at, updatedAt: updated_at };
+}
+
+export async function editClarifyComment(id: number, content: string): Promise<void> {
+  const db = await getDb();
+  db.run(
+    "UPDATE clarify_comments SET content = ?, updated_at = datetime('now') WHERE id = ?",
+    [content, id],
+  );
+  await persist();
+}
+
+export async function deleteClarifyComment(id: number): Promise<void> {
+  const db = await getDb();
+  db.run('DELETE FROM clarify_comments WHERE id = ?', [id]);
+  await persist();
+}
+
+export async function getClarifyCommentStoryId(id: number): Promise<string | null> {
+  const db  = await getDb();
+  const res = db.exec('SELECT story_id FROM clarify_comments WHERE id = ?', [id]);
+  if (!res.length || !res[0].values.length) return null;
+  return res[0].values[0][0] as string;
+}
